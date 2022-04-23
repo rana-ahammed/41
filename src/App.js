@@ -3,11 +3,13 @@ import { initializeApp } from "firebase/app";
 import firebaseConfig from "./firebase.config";
 import {
   createUserWithEmailAndPassword,
+  FacebookAuthProvider,
   getAuth,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  updateProfile,
 } from "firebase/auth";
 import { useState } from "react";
 
@@ -23,10 +25,11 @@ function App() {
     password: "",
     photo: "",
   });
-  const provider = new GoogleAuthProvider();
+  const googleProvider = new GoogleAuthProvider();
+  const fbProvider = new FacebookAuthProvider();
   const handleSignIn = () => {
     const auth = getAuth();
-    signInWithPopup(auth, provider)
+    signInWithPopup(auth, googleProvider)
       .then((res) => {
         const { displayName, photoURL, email } = res.user;
         const signedInUser = {
@@ -43,6 +46,35 @@ function App() {
         console.log(err.message);
       });
   };
+
+  const handleFbSignIn = () => {
+    const auth = getAuth();
+signInWithPopup(auth, fbProvider)
+  .then((result) => {
+    // The signed-in user info.
+    const user = result.user;
+    console.log('fb user after sign in ', user);
+
+    // This gives you a Facebook Access Token. You can use it to access the Facebook API.
+    const credential = FacebookAuthProvider.credentialFromResult(result);
+    const accessToken = credential.accessToken;
+
+    // ...
+  })
+  .catch((error) => {
+    // Handle Errors here.
+    const errorCode = error.code;
+    const errorMessage = error.message;
+    // The email of the user's account used.
+    const email = error.email;
+    // The AuthCredential type that was used.
+    const credential = FacebookAuthProvider.credentialFromError(error);
+
+    // ...
+  });
+
+  }
+
 
   const handleSignOut = () => {
     const auth = getAuth();
@@ -89,8 +121,7 @@ function App() {
           newUserInfo.error = "";
           newUserInfo.success = true;
           setUser(newUserInfo);
-
-          console.log(res);
+          updateUserName(user.name);
         })
         .catch((error) => {
           const newUserInfo = { ...user };
@@ -103,11 +134,12 @@ function App() {
     if (!newUser && user.email && user.password) {
       const auth = getAuth();
       signInWithEmailAndPassword(auth, user.email, user.password)
-        .then(res => {
+        .then((res) => {
           const newUserInfo = { ...user };
           newUserInfo.error = "";
           newUserInfo.success = true;
           setUser(newUserInfo);
+          console.log("sign in user info", res.user);
         })
         .catch((error) => {
           const newUserInfo = { ...user };
@@ -120,13 +152,24 @@ function App() {
     e.preventDefault();
   };
 
+  const updateUserName = (name) => {
+    const auth = getAuth();
+    updateProfile(auth.currentUser, { displayName: name })
+      .then(() => {
+        console.log("user name updated successfully");
+      })
+
+      .catch((error) => {
+        console.log(error);
+      });
+  };
+
   return (
     <div className="App">
-      {user.isSignedIn ? (
-        <button onClick={handleSignOut}>Sign Out</button>
-      ) : (
-        <button onClick={handleSignIn}>Sign In</button>
-      )}
+      {user.isSignedIn ? (<button onClick={handleSignOut}>Sign Out</button>) : (<button onClick={handleSignIn}>Sign In</button>)}
+      <br />
+      <button onClick={handleFbSignIn}>Sign IN using Facebook</button>
+
       {user.isSignedIn && (
         <div>
           <p>Welcome, {user.name}</p>
@@ -160,20 +203,20 @@ function App() {
           required
         />
         <br />
-        <input
-          type="password"
+        <input type="password"
           onBlur={handleBlur}
           name="password"
           placeholder="Your Password"
           autoComplete="on"
-          required
-        />
+          required/>
         <br />
-        <input type="submit" value="Submit" />
+        <input type="submit" value={newUser ? 'Sign Up' : 'Sign In'} />
       </form>
       <p style={{ color: "red" }}>{user.error}</p>
       {user.success && (
-      <p style={{ color: "green" }}>User has been {newUser ?"created" : "logged in"} successfully</p>
+        <p style={{ color: "green" }}>
+          User has been {newUser ? "created" : "logged in"} successfully
+        </p>
       )}
     </div>
   );
